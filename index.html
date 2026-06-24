@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#062b1f">
+<title>Golf Club Selector V2</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-title" content="Club Selector">
+
+<style>
+  html { -webkit-text-size-adjust: 100%; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    margin: 0;
+    padding: env(safe-area-inset-top) 12px env(safe-area-inset-bottom) 12px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: #061811;
+    color: #f5fff9;
+    font-size: 19px;
+  }
+  .app { max-width: 760px; margin: 0 auto; padding-bottom: 28px; }
+  .top {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    background: linear-gradient(#061811 85%, rgba(6,24,17,0));
+    padding: 10px 0 12px 0;
+  }
+  h1 { margin: 0; font-size: 30px; letter-spacing: -0.5px; }
+  .subtitle { color: #b8d7c7; font-size: 15px; margin-top: 3px; }
+  .card {
+    background: #0d2a1e;
+    border: 1px solid #1e4a38;
+    border-radius: 18px;
+    padding: 14px;
+    margin: 12px 0;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.22);
+  }
+  .resultCard {
+    background: linear-gradient(180deg, #114a32, #0b2b20);
+    border: 1px solid #37a169;
+  }
+  label { display: block; color: #d8f6e8; font-weight: 700; margin: 0 0 7px 2px; }
+  input, select, button {
+    width: 100%;
+    min-height: 52px;
+    border-radius: 14px;
+    border: 1px solid #317251;
+    background: #071e15;
+    color: #ffffff;
+    font-size: 22px;
+    padding: 10px 12px;
+    outline: none;
+    -webkit-appearance: none;
+    appearance: none;
+  }
+  input[type="range"] { padding: 0; min-height: 44px; }
+  button {
+    background: #1fa463;
+    border-color: #3fd486;
+    font-weight: 800;
+    cursor: pointer;
+  }
+  button.secondary { background: #123829; border-color: #2e6b50; }
+  .grid { display: grid; grid-template-columns: 1fr; gap: 12px; }
+  @media (min-width: 680px) { .grid.two { grid-template-columns: 1fr 1fr; } }
+  .quickYards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 8px; }
+  .quickYards button { min-height: 44px; font-size: 18px; padding: 6px; background: #153d2d; }
+  .pillRow { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+  .pillRow button { font-size: 17px; min-height: 46px; background: #153d2d; }
+  .pillRow button.on { background: #28b66e; border-color: #7cf0ad; }
+  .rangeLine { display: flex; justify-content: space-between; color: #b8d7c7; font-size: 15px; margin-top: -2px; }
+  .bigNumber { font-size: 58px; line-height: 1; font-weight: 900; margin: 5px 0; }
+  .clubName { font-size: 44px; line-height: 1.03; font-weight: 900; margin: 5px 0 2px; }
+  .small { font-size: 15px; color: #b8d7c7; }
+  .notes { margin-top: 10px; color: #e9fff2; font-size: 17px; }
+  .notes div { margin: 4px 0; }
+  .safe { color: #c8ffda; }
+  .warn { color: #ffd27a; }
+  .bad { color: #ffaaa5; }
+  details summary { cursor: pointer; font-weight: 800; color: #d8f6e8; padding: 6px 0; }
+  table { width: 100%; border-collapse: collapse; font-size: 16px; margin-top: 8px; }
+  th, td { border-bottom: 1px solid #24513e; padding: 8px 4px; text-align: left; }
+  th { color: #b8d7c7; }
+  .footer { color: #98b7a7; font-size: 13px; padding: 8px 2px 20px; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="top">
+    <h1>Golf Club Selector</h1>
+    <div class="subtitle">Mobile caddie calculator for iPhone · works offline once saved</div>
+  </div>
+
+  <div class="card resultCard" id="resultCard">
+    <div class="small">Adjusted playing distance</div>
+    <div class="bigNumber"><span id="playDistance">—</span><span style="font-size:28px"> yds</span></div>
+    <div class="small">Recommended club</div>
+    <div class="clubName" id="clubPick">Enter yardage</div>
+    <div class="small" id="clubRange">—</div>
+    <div class="notes" id="notes"></div>
+  </div>
+
+  <div class="card">
+    <div class="grid two">
+      <div>
+        <label for="target">Target carry yardage</label>
+        <input id="target" type="number" inputmode="numeric" pattern="[0-9]*" placeholder="Example: 165" value="165">
+        <div class="quickYards">
+          <button type="button" onclick="addYards(-10)">-10</button>
+          <button type="button" onclick="addYards(-5)">-5</button>
+          <button type="button" onclick="addYards(5)">+5</button>
+          <button type="button" onclick="addYards(10)">+10</button>
+        </div>
+      </div>
+      <div>
+        <label for="safeMiss">Safe miss</label>
+        <select id="safeMiss">
+          <option value="neutral">Neutral / normal</option>
+          <option value="short">Short is safe</option>
+          <option value="long">Long is safe</option>
+          <option value="left">Left is safe</option>
+          <option value="right">Right is safe</option>
+          <option value="frontPin">Front pin</option>
+          <option value="backPin">Back pin</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="grid two">
+      <div>
+        <label for="windDir">Wind direction</label>
+        <select id="windDir">
+          <option value="none">No wind</option>
+          <option value="into">Into</option>
+          <option value="helping">Helping / downwind</option>
+          <option value="quarterInto">Quartering into</option>
+          <option value="quarterHelping">Quartering helping</option>
+          <option value="leftRight">Left to right</option>
+          <option value="rightLeft">Right to left</option>
+        </select>
+      </div>
+      <div>
+        <label for="windSpeed">Wind speed: <span id="windSpeedOut">0</span> mph</label>
+        <input id="windSpeed" type="range" min="0" max="35" step="1" value="0">
+        <div class="rangeLine"><span>0</span><span>35</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="grid two">
+      <div>
+        <label for="lie">Lie</label>
+        <select id="lie">
+          <option value="fairway">Fairway</option>
+          <option value="firstCut">First cut</option>
+          <option value="rough">Rough</option>
+          <option value="deepRough">Deep rough</option>
+          <option value="flyer">Rough flyer lie</option>
+          <option value="sand">Fairway bunker / sand</option>
+          <option value="pine">Pine straw</option>
+          <option value="hardpan">Hardpan / tight lie</option>
+        </select>
+      </div>
+      <div>
+        <label for="slope">Slope / stance</label>
+        <select id="slope">
+          <option value="flat">Flat</option>
+          <option value="uphillLie">Uphill lie</option>
+          <option value="downhillLie">Downhill lie</option>
+          <option value="aboveFeet">Ball above feet</option>
+          <option value="belowFeet">Ball below feet</option>
+          <option value="uphillTarget">Target uphill</option>
+          <option value="downhillTarget">Target downhill</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="grid two">
+      <div>
+        <label for="elevation">Elevation change</label>
+        <select id="elevation">
+          <option value="0">Flat / unknown</option>
+          <option value="5">Target 5 yds above</option>
+          <option value="10">Target 10 yds above</option>
+          <option value="15">Target 15 yds above</option>
+          <option value="-5">Target 5 yds below</option>
+          <option value="-10">Target 10 yds below</option>
+          <option value="-15">Target 15 yds below</option>
+        </select>
+      </div>
+      <div>
+        <label for="temp">Temperature: <span id="tempOut">70</span>°F</label>
+        <input id="temp" type="range" min="45" max="105" step="5" value="70">
+        <div class="rangeLine"><span>45</span><span>105</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="grid two">
+      <div>
+        <label for="greenFirm">Green firmness</label>
+        <select id="greenFirm">
+          <option value="normal">Normal</option>
+          <option value="soft">Soft / receptive</option>
+          <option value="firm">Firm / releases</option>
+        </select>
+      </div>
+      <div>
+        <label>Shot style</label>
+        <div class="pillRow">
+          <button type="button" id="styleFull" class="on" onclick="setShotStyle('full')">Full</button>
+          <button type="button" id="styleSmooth" onclick="setShotStyle('smooth')">Smooth</button>
+          <button type="button" id="styleAgg" onclick="setShotStyle('aggressive')">Hard</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <details class="card">
+    <summary>Club yardage chart</summary>
+    <table id="clubTable"><thead><tr><th>Club</th><th>Carry Range</th><th>Stock</th></tr></thead><tbody></tbody></table>
+  </details>
+
+  <details class="card">
+    <summary>iPhone save instructions</summary>
+    <div class="notes">
+      <div>1. Open this file in Safari.</div>
+      <div>2. Tap the Share button.</div>
+      <div>3. Tap “Add to Home Screen.”</div>
+      <div>4. Open it from the new Home Screen icon when you play.</div>
+    </div>
+  </details>
+
+  <div class="footer">Default rules are estimates. Confirm on-course and adjust later using your real TrackMan/launch monitor numbers.</div>
+</div>
+
+<script>
+(function(){
+  var shotStyle = 'full';
+  var clubs = [
+    {name:'Driver', min:250, max:285, type:'wood'},
+    {name:'Mini Driver', min:230, max:260, type:'wood'},
+    {name:'3 Hybrid', min:205, max:225, type:'hybrid'},
+    {name:'4 Hybrid', min:195, max:215, type:'hybrid'},
+    {name:'5 Iron', min:190, max:205, type:'iron'},
+    {name:'6 Iron', min:175, max:190, type:'iron'},
+    {name:'7 Iron', min:160, max:175, type:'iron'},
+    {name:'8 Iron', min:145, max:160, type:'iron'},
+    {name:'9 Iron', min:130, max:145, type:'iron'},
+    {name:'PW', min:120, max:135, type:'wedge'},
+    {name:'PW Half', min:85, max:95, type:'wedgeHalf'},
+    {name:'50°', min:100, max:115, type:'wedge'},
+    {name:'50° Half', min:75, max:85, type:'wedgeHalf'},
+    {name:'54°', min:90, max:105, type:'wedge'},
+    {name:'54° Half', min:62, max:75, type:'wedgeHalf'},
+    {name:'58°', min:75, max:90, type:'wedge'},
+    {name:'58° Half', min:50, max:62, type:'wedgeHalf'}
+  ];
+  function byId(id){ return document.getElementById(id); }
+  function val(id){ return byId(id).value; }
+  function num(id){ var n = parseFloat(val(id)); return isNaN(n) ? 0 : n; }
+  function mid(c){ return (c.min + c.max) / 2; }
+  function clamp(x,a,b){ return Math.max(a, Math.min(b, x)); }
+  window.addYards = function(delta){ var t = byId('target'); var n = parseInt(t.value,10); if(isNaN(n)){n=0;} t.value = n + delta; calculate(); };
+  window.setShotStyle = function(s){ shotStyle=s; byId('styleFull').className=s==='full'?'on':''; byId('styleSmooth').className=s==='smooth'?'on':''; byId('styleAgg').className=s==='aggressive'?'on':''; calculate(); };
+
+  function adjustment(target, notes){
+    var adj = 0;
+    var wind = num('windSpeed');
+    var wd = val('windDir');
+    if(wd === 'into') { adj += wind * 0.85; notes.push('Into wind adds about ' + Math.round(wind*0.85) + ' yards.'); }
+    if(wd === 'helping') { adj -= wind * 0.55; notes.push('Helping wind subtracts about ' + Math.round(wind*0.55) + ' yards.'); }
+    if(wd === 'quarterInto') { adj += wind * 0.55; notes.push('Quartering into wind adds about ' + Math.round(wind*0.55) + ' yards.'); }
+    if(wd === 'quarterHelping') { adj -= wind * 0.35; notes.push('Quartering helping wind subtracts about ' + Math.round(wind*0.35) + ' yards.'); }
+    if(wd === 'leftRight') { notes.push('Crosswind: start it left or favor a club with less curve.'); }
+    if(wd === 'rightLeft') { notes.push('Crosswind: start it right or favor a club with less curve.'); }
+
+    var lie = val('lie');
+    if(lie === 'firstCut') { adj += 2; notes.push('First cut adds slight contact risk.'); }
+    if(lie === 'rough') { adj += 5; notes.push('Rough adds contact risk; take enough club.'); }
+    if(lie === 'deepRough') { adj += 10; notes.push('Deep rough: prioritize clean contact over exact carry.'); }
+    if(lie === 'flyer') { adj -= 7; notes.push('Flyer lie: expect lower spin and more release.'); }
+    if(lie === 'sand') { adj += 8; notes.push('Fairway bunker/sand: take extra club and swing smoother.'); }
+    if(lie === 'pine') { adj += 4; notes.push('Pine straw: expect less stable footing.'); }
+    if(lie === 'hardpan') { adj -= 2; notes.push('Hardpan/tight lie: cleaner strike but lower margin.'); }
+
+    var slope = val('slope');
+    if(slope === 'uphillLie') { adj += 5; notes.push('Uphill lie launches higher; add club.'); }
+    if(slope === 'downhillLie') { adj -= 3; notes.push('Downhill lie launches lower; ball may run.'); }
+    if(slope === 'aboveFeet') { notes.push('Ball above feet: expect draw/hook tendency.'); }
+    if(slope === 'belowFeet') { adj += 2; notes.push('Ball below feet: harder contact; expect fade tendency.'); }
+    if(slope === 'uphillTarget') { adj += 5; notes.push('Target plays uphill; add distance.'); }
+    if(slope === 'downhillTarget') { adj -= 5; notes.push('Target plays downhill; subtract distance.'); }
+
+    var elev = parseFloat(val('elevation'));
+    if(!isNaN(elev) && elev !== 0) { adj += elev; notes.push((elev > 0 ? 'Elevation above target adds ' : 'Elevation below target subtracts ') + Math.abs(elev) + ' yards.'); }
+
+    var temp = num('temp');
+    if(temp < 70) { adj += (70-temp)*0.20; notes.push('Cool air adds about ' + Math.round((70-temp)*0.20) + ' yards.'); }
+    if(temp > 80) { adj -= (temp-80)*0.12; notes.push('Warm air subtracts about ' + Math.round((temp-80)*0.12) + ' yards.'); }
+
+    var firm = val('greenFirm');
+    if(firm === 'soft') { adj += 2; notes.push('Soft green: carry it closer to the number.'); }
+    if(firm === 'firm') { adj -= 3; notes.push('Firm green: allow some release.'); }
+
+    var safe = val('safeMiss');
+    if(safe === 'short') { adj -= 3; notes.push('Short is safe: favor the shorter club.'); }
+    if(safe === 'long') { adj += 3; notes.push('Long is safe: take enough club.'); }
+    if(safe === 'frontPin') { adj -= 4; notes.push('Front pin: avoid long miss unless trouble is short.'); }
+    if(safe === 'backPin') { adj += 4; notes.push('Back pin: take enough club.'); }
+    if(safe === 'left') { notes.push('Left is safe: aim/shape accordingly.'); }
+    if(safe === 'right') { notes.push('Right is safe: aim/shape accordingly.'); }
+
+    if(shotStyle === 'smooth') { adj += 4; notes.push('Smooth swing selected: adding club.'); }
+    if(shotStyle === 'aggressive') { adj -= 3; notes.push('Hard swing selected: slightly less club.'); }
+    return Math.round(target + adj);
+  }
+
+  function pickClub(dist){
+    var best = null;
+    var bestScore = 9999;
+    for(var i=0;i<clubs.length;i++){
+      var c = clubs[i];
+      var cMid = mid(c);
+      var score = Math.abs(cMid - dist);
+      if(dist >= c.min && dist <= c.max) { score -= 8; }
+      if(shotStyle === 'smooth' && dist > cMid) { score += 2; }
+      if(shotStyle === 'aggressive' && dist < cMid) { score += 2; }
+      if(score < bestScore){ bestScore = score; best = c; }
+    }
+    return best;
+  }
+
+  function calculate(){
+    byId('windSpeedOut').innerHTML = val('windSpeed');
+    byId('tempOut').innerHTML = val('temp');
+    var target = num('target');
+    if(target <= 0){ byId('playDistance').innerHTML='—'; byId('clubPick').innerHTML='Enter yardage'; byId('clubRange').innerHTML='—'; byId('notes').innerHTML=''; return; }
+    var notes = [];
+    var play = adjustment(target, notes);
+    play = clamp(play, 40, 310);
+    var club = pickClub(play);
+    byId('playDistance').innerHTML = play;
+    byId('clubPick').innerHTML = club ? club.name : 'No club';
+    byId('clubRange').innerHTML = club ? ('Your range: ' + club.min + '–' + club.max + ' yards · stock: ' + Math.round(mid(club)) + ' yards') : '—';
+    var html = '';
+    if(club && play < club.min) { html += '<div class="warn">Play this as a controlled/smooth shot.</div>'; }
+    if(club && play > club.max) { html += '<div class="warn">This is near the top of the range. Consider one more club if trouble is short.</div>'; }
+    if(play < 50) { html += '<div class="warn">Inside 50 yards: use feel/wedge matrix instead of full-shot logic.</div>'; }
+    for(var i=0;i<notes.length && i<7;i++){ html += '<div>• ' + notes[i] + '</div>'; }
+    byId('notes').innerHTML = html;
+  }
+
+  function buildTable(){
+    var tb = byId('clubTable').getElementsByTagName('tbody')[0];
+    var html = '';
+    for(var i=0;i<clubs.length;i++){
+      html += '<tr><td>' + clubs[i].name + '</td><td>' + clubs[i].min + '–' + clubs[i].max + '</td><td>' + Math.round(mid(clubs[i])) + '</td></tr>';
+    }
+    tb.innerHTML = html;
+  }
+
+  function attach(){
+    var ids = ['target','safeMiss','windDir','windSpeed','lie','slope','elevation','temp','greenFirm'];
+    for(var i=0;i<ids.length;i++){
+      var el = byId(ids[i]);
+      if(el.addEventListener){ el.addEventListener('input', calculate, false); el.addEventListener('change', calculate, false); }
+      else { el.attachEvent('onchange', calculate); }
+    }
+  }
+  buildTable();
+  attach();
+  calculate();
+})();
+</script>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function(){
+    navigator.serviceWorker.register('./service-worker.js').catch(function(){});
+  });
+}
+</script>
+</body>
+</html>
